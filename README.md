@@ -119,21 +119,64 @@ When an AI client (such as Claude Desktop or Cursor) launches an MCP server, it 
 sequenceDiagram
     autonumber
     participant Client as AI Host (Claude / Cursor)
-    participant Server as MCP Server (e.g. Postgres)
+    participant Server as MCP Server (Postgres)
 
-    Note over Client,Server: Phase 1: Initialization Handshake
-    Client->>Server: {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {"roots": {"listChanged": true}}}}
-    Server-->>Client: {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}, "resources": {}}, "serverInfo": {"name": "postgres-mcp", "version": "1.0.0"}}}
-    Client->>Server: {"jsonrpc": "2.0", "method": "notifications/initialized"}
+    Note over Client,Server: Phase 1 - Initialization Handshake
+    Client->>Server: initialize (protocolVersion: 2024-11-05)
+    Server-->>Client: result (capabilities: tools, resources)
+    Client->>Server: notifications/initialized
 
-    Note over Client,Server: Phase 2: Tool Discovery
-    Client->>Server: {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
-    Server-->>Client: {"jsonrpc": "2.0", "id": 2, "result": {"tools": [{"name": "query", "description": "Execute a SELECT SQL query", "inputSchema": {"type": "object", "properties": {"sql": {"type": "string"}}, "required": ["sql"]}}]}}
+    Note over Client,Server: Phase 2 - Tool Discovery
+    Client->>Server: tools/list
+    Server-->>Client: result (tools: execute_sql_query, inspect_schema)
 
-    Note over Client,Server: Phase 3: Model Tool Invocation
-    Client->>Server: {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "query", "arguments": {"sql": "SELECT count(*) FROM users;"}}}
-    Server-->>Client: {"jsonrpc": "2.0", "id": 3, "result": {"content": [{"type": "text", "text": "{\"count\": 14820}"}]}}
+    Note over Client,Server: Phase 3 - Model Tool Invocation
+    Client->>Server: tools/call: execute_sql_query (sql: SELECT count(*) FROM users)
+    Server-->>Client: result: count = 14820
 ```
+
+#### Under the Hood: The Raw JSON-RPC 2.0 Payloads
+For developers building custom clients or servers, here is the exact wire protocol format sent over `stdio`:
+
+<details>
+<summary><b>Click to expand raw JSON-RPC wire payloads</b></summary>
+
+```json
+// 1. Client initialization request:
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": { "roots": { "listChanged": true } },
+    "clientInfo": { "name": "claude-desktop", "version": "1.0.0" }
+  }
+}
+
+// 2. Server capabilities response:
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": { "tools": {}, "resources": {} },
+    "serverInfo": { "name": "postgres-mcp", "version": "1.0.0" }
+  }
+}
+
+// 3. Tool execution call:
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "execute_sql_query",
+    "arguments": { "sql": "SELECT count(*) FROM users;" }
+  }
+}
+```
+</details>
 
 ---
 
@@ -629,6 +672,16 @@ Contributions, new production MCP servers, and verified configuration templates 
 2. Add your server under the appropriate suite with exact transport and environment documentation.
 3. Commit with a semantic message (`git commit -m "feat: add ClickHouse MCP server"`).
 4. Open a Pull Request.
+
+---
+
+## 🌟 Show Your Support — Star This Repo!
+
+If this repository helped you connect tools to Claude or Cursor, saved you debugging time, or taught you something new about MCP:
+
+* ⭐ **Give this repository a star** — it directly supports free, open-source AI developer tooling and helps others find it!
+* 🍴 **Fork it** — use it as your personal boilerplate to build and register custom tools.
+* 📢 **Share it** — spread the word to fellow developers, engineering peers, or on LinkedIn & X (Twitter)!
 
 ---
 
